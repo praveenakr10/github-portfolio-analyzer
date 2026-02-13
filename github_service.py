@@ -57,3 +57,14 @@ def get_repo_commits(username: str, repo_name: str):
         return response.json()
     else:
         return []
+
+def get_repo_activity(username: str, repo_name: str):
+    base_url = f"{GITHUB_BASE_URL}/repos/{username}/{repo_name}"
+
+    issues = requests.get(f"{base_url}/issues?state=all").json()
+    pulls = requests.get(f"{base_url}/pulls?state=all").json()
+
+    return {
+        "total_issues": len(issues) if isinstance(issues, list) else 0,
+        "total_prs": len(pulls) if isinstance(pulls, list) else 0
+    }

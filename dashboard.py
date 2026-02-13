@@ -10,10 +10,24 @@ st.set_page_config(page_title="GitHub Portfolio Analyzer", layout="wide")
 
 st.title("🚀 GitHub Portfolio Analyzer")
 st.markdown("AI-Powered Recruiter Style GitHub Evaluation")
+st.markdown("""
+### 🎯 What This Tool Does
+- Evaluates GitHub from a recruiter’s perspective  
+- Generates an objective portfolio score  
+- Detects red flags  
+- Highlights strongest projects  
+- Provides a 30-day improvement roadmap  
+""")
 
-username = st.text_input("Enter GitHub Username")
+profile_input = st.text_input(
+    "Enter GitHub Profile URL",
+    placeholder="https://github.com/username"
+)
 
-if st.button("Analyze Profile") and username:
+
+username = None
+if profile_input:
+    username = profile_input.rstrip("/").split("/")[-1]
 
     with st.spinner("Analyzing profile..."):
         response = requests.get(f"{API_URL}/{username}")
@@ -21,7 +35,36 @@ if st.button("Analyze Profile") and username:
     if response.status_code != 200:
         st.error("Error fetching data from backend.")
     else:
-        data = response.json()
+        
+        if response.status_code == 200:         
+            data = response.json()
+            if "error" in data:
+                st.error("GitHub user not found.")
+                st.stop()
+
+        st.subheader("🔝 Highlighted Projects")
+
+        repos = data.get("top_repositories", [])
+
+        if repos:
+            for repo in repos:
+                st.markdown(f"### {repo['name']}")
+                st.write(f"⭐ Stars: {repo['stars']}")
+                st.write(f"🔤 Language: {repo['language']}")
+                st.write(f"📝 {repo['description']}")
+                st.markdown("---")
+        else:
+            st.info("No standout repositories detected.")
+        st.subheader("📬 Issue & PR Activity")
+
+        activity = data.get("repo_activity", [])
+
+        if activity:
+            for repo in activity:
+                st.markdown(f"### {repo['repo']}")
+                st.write(f"Issues: {repo['issues']}")
+                st.write(f"Pull Requests: {repo['prs']}")
+                st.markdown("---")
 
         # -------------------------
         # TOP SECTION
@@ -179,19 +222,16 @@ if st.button("Analyze Profile") and username:
         **What this is:**  
         A personalized 4-week improvement roadmap to increase hiring readiness.
         """)
-
         roadmap = data.get("growth_roadmap", {})
 
         if roadmap:
-            for week, tasks in roadmap.items():
+            for week, content in roadmap.items():
                 st.markdown(f"## {week.capitalize()}")
-
-                if isinstance(tasks, dict):
-                    for day_range, description in tasks.items():
-                        st.markdown(f"**{day_range.replace('-', ' to ')}**")
-                        st.write(f"- {description}")
-                else:
-                    st.info(tasks)
-
+                st.markdown(f"**Focus:** {content.get('focus')}")
+                
+                for task in content.get("tasks", []):
+                    st.write(f"- {task}")
         else:
             st.warning("Roadmap could not be generated.")
+
+
