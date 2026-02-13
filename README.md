@@ -22,10 +22,11 @@ Recruiters spend countless hours manually evaluating GitHub profiles to assess:
 
 **This process is subjective, time-consuming, and inconsistent.**
 
-##  Our Solution
+##  Solution
 
 GitHub Portfolio Analyzer automates recruiter-style evaluation using **structured scoring algorithms** and **AI reasoning** to deliver actionable insights in seconds.
 
+#### Demo Link: https://drive.google.com/file/d/1iMmFQ9fxQU7FRH4BBtAXbkWV_stWQvh8/view?usp=sharing
 ---
 
 ##  Key Features
