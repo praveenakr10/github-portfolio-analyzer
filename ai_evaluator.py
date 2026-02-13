@@ -7,46 +7,8 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY")
 )
-'''
-def evaluate_readme(readme_text):
-    if not readme_text:
-        return {
-            "readme_score": 0,
-            "feedback": "No README found."
-        }
+print("GROQ KEY:", os.getenv("GROQ_API_KEY"))
 
-    prompt = f"""
-    You are a senior technical recruiter.
-
-    Evaluate the following GitHub README.
-
-    Score it out of 20 based on:
-    - Clarity of problem statement
-    - Setup instructions
-    - Usage explanation
-    - Real-world impact clarity
-
-    Return:
-    1. Score (just number)
-    2. 3 strengths
-    3. 3 improvement suggestions
-
-    README:
-    {readme_text[:3000]}
-    """
-
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
-
-    return {
-        "ai_response": response.choices[0].message.content
-    }
-
-'''
 def evaluate_readme(readme_text):
     if not readme_text:
         return {
@@ -132,40 +94,99 @@ def recruiter_screening_summary(username, total_score, breakdown, readme_eval):
             "recruiter_summary": "AI parsing failed.",
             "top_improvements": []
         }
-def generate_growth_roadmap(username, total_score):
+def generate_growth_roadmap(username, total_score, breakdown=None, red_flags=None):
     prompt = f"""
-    You are a senior software engineering mentor.
+        You are a senior software engineering mentor helping a student improve their GitHub profile.
 
-    GitHub Score: {total_score}/100
+        GitHub Score: {total_score}/100
+        Score Breakdown: {breakdown}
+        Detected Red Flags: {red_flags}
 
-    Create a 30-day GitHub improvement roadmap divided into 4 weeks.
+        Create a concise, practical 30-day improvement roadmap.
 
-    Return ONLY valid JSON. No extra text.
+        Rules:
+        - Divide into exactly 4 weeks.
+        - Each week must have:
+            - A clear focus title
+            - 3 to 4 specific, actionable tasks
+        - Do NOT create daily plans.
+        - Do NOT break into 2-day schedules.
+        - Keep it structured and professional.
+        - Tasks must be measurable (e.g., "Add architecture diagram to README", "Refactor 3 weak commit messages")
 
-    {{
-      "week1": "",
-      "week2": "",
-      "week3": "",
-      "week4": ""
-    }}
-    """
+        Return ONLY valid JSON in this format:
 
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
-
-    import json
-
-    raw_output = response.choices[0].message.content.strip()
+        {{
+        "week1": {{
+            "focus": "",
+            "tasks": ["", "", ""]
+        }},
+        "week2": {{
+            "focus": "",
+            "tasks": ["", "", ""]
+        }},
+        "week3": {{
+            "focus": "",
+            "tasks": ["", "", ""]
+        }},
+        "week4": {{
+            "focus": "",
+            "tasks": ["", "", ""]
+        }}
+        }}
+        """
 
     try:
-        return json.loads(raw_output)
-    except:
-        return {
-            "week1": "Improve README clarity and add setup instructions.",
-            "week2": "Refactor commit messages and maintain steady commits.",
-            "week3": "Deploy at least one project and add demo link.",
-            "week4": "Add tests and improve documentation quality."
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+
+        import json, re
+
+        raw_output = response.choices[0].message.content.strip()
+
+        # Extract JSON safely
+        json_match = re.search(r"\{.*\}", raw_output, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+
+    except Exception:
+        pass
+
+    # Safe fallback (clean and structured)
+    return {
+        "week1": {
+            "focus": "Improve Documentation & Presentation",
+            "tasks": [
+                "Rewrite README with clear problem statement and impact section",
+                "Add setup instructions and usage examples",
+                "Include architecture diagram or workflow explanation"
+            ]
+        },
+        "week2": {
+            "focus": "Strengthen Project Quality",
+            "tasks": [
+                "Refactor code for better structure and modularity",
+                "Add meaningful commit messages",
+                "Remove or archive low-quality repositories"
+            ]
+        },
+        "week3": {
+            "focus": "Increase Technical Depth",
+            "tasks": [
+                "Add backend + database integration to one project",
+                "Deploy one project and include live demo link",
+                "Introduce basic testing framework"
+            ]
+        },
+        "week4": {
+            "focus": "Improve Recruiter Signaling",
+            "tasks": [
+                "Pin strongest 3 repositories",
+                "Add measurable outcomes in project descriptions",
+                "Maintain consistent commit activity"
+            ]
         }
+    }

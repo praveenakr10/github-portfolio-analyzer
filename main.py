@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-from github_service import get_user_profile, get_user_repos, get_repo_readme,get_repo_commits
+from github_service import get_user_profile, get_user_repos, get_repo_readme,get_repo_commits, get_repo_activity
 from scoring_engine import calculate_portfolio_score
 from commit_analyzer import analyze_commit_patterns
 from ai_evaluator import evaluate_readme, recruiter_screening_summary, generate_growth_roadmap
@@ -39,8 +39,10 @@ def test_groq():
 @app.get("/analyze/{username}")
 def analyze_user(username: str):
     profile = get_user_profile(username)
+    
+    if "error" in profile:
+        return {"error": "GitHub user not found"}
     repos = get_user_repos(username)
-
     score_data = calculate_portfolio_score(profile, repos)
 
     readme_text = None
@@ -71,9 +73,41 @@ def analyze_user(username: str):
     final_score += engineering_score
     final_score = min(final_score, 100)
 
-    roadmap = generate_growth_roadmap(username, final_score)
+    roadmap = generate_growth_roadmap(
+        username,
+        final_score,
+        score_data["breakdown"],
+        red_flags
+    )
+
+    top_repos = sorted(
+        [r for r in repos if not r["fork"]],
+        key=lambda x: x["stargazers_count"],
+        reverse=True
+    )[:3]
+
+    formatted_top = [
+        {
+            "name": r["name"],
+            "stars": r["stargazers_count"],
+            "language": r["language"],
+            "description": r["description"]
+        }
+        for r in top_repos
+    ]
+    activity_data = []
+
+    for repo in top_repos:
+        activity = get_repo_activity(username, repo["name"])
+        activity_data.append({
+            "repo": repo["name"],
+            "issues": activity["total_issues"],
+            "prs": activity["total_prs"]
+        })
 
     return {
+    "top_repositories": formatted_top,
+    "repo_activity": activity_data,
     "username": profile.get("login"),
     "github_portfolio_score": final_score,
     "score_breakdown": score_data["breakdown"],
@@ -82,7 +116,7 @@ def analyze_user(username: str):
     "commit_analysis": commit_data,
     "engineering_depth_score": engineering_score,
     "red_flags": red_flags,
-    "growth_roadmap": roadmap
+    "growth_roadmap": roadmap,
     }
 
 
